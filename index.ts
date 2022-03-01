@@ -7,13 +7,17 @@ type AbstractClass = Function & { prototype: any };
 type Class<T> = AbstractClass & { new (...args: any[]): T };
 
 type KeyMetadata = { name: string; objectType: AbstractClass };
+
 type UnionMetadata = {
   prototypeMap: Map<Class<any>, number | string>;
   keyMap: Map<number | string, Class<any>>;
 };
 
 export function serialize(obj: object, objectType?: AbstractClass) {
+  if (obj == null) return null;
+
   const sourceType = Object.getPrototypeOf(obj);
+
   if (objectType) {
     const unionMetadata: Map<AbstractClass, UnionMetadata> =
       Reflect.getMetadata(unionMetadataKey, sourceType);
@@ -21,23 +25,21 @@ export function serialize(obj: object, objectType?: AbstractClass) {
 
     if (unionBaseData) {
       const key = unionBaseData.prototypeMap.get(sourceType);
+
       if (key === undefined) {
         throw new Error("Union class is missing a key!");
       }
       if (typeof key === "number") {
-        return [key, serializeInner(obj, sourceType)];
+        return [key, serializeClass(obj, sourceType)];
       } else {
-        return { [key]: serializeInner(obj, sourceType) };
+        return { [key]: serializeClass(obj, sourceType) };
       }
     }
   }
-  return serializeInner(obj, sourceType);
+  return serializeClass(obj, sourceType);
 }
 
-const serializeInner = function <C extends AbstractClass>(
-  obj: object,
-  baseType: Class<any>
-) {
+const serializeClass = function (obj: object, baseType: Class<any>) {
   let result: {} | any[];
   const keyMap = Reflect.getMetadata(keyMetadataKey, baseType) as Map<
     number | string,
@@ -47,10 +49,9 @@ const serializeInner = function <C extends AbstractClass>(
   keyMap.forEach((keyData: KeyMetadata, key: number | string) => {
     const keyValue = obj[keyData.name];
 
-    const serialized =
-      typeof keyValue === "object"
-        ? serialize(keyValue, keyData.objectType)
-        : keyValue;
+    const serialized = isMessagePack(keyData.objectType)
+      ? serialize(keyValue, keyData.objectType)
+      : keyValue;
 
     switch (typeof key) {
       case "number":
@@ -61,8 +62,10 @@ const serializeInner = function <C extends AbstractClass>(
         (<any[]>result).push(serialized);
         break;
       case "string":
-        if (result == null) result = {};
-        result[key] = serialized;
+        if (keyValue != null) {
+          if (result == null) result = {};
+          result[key] = serialized;
+        }
         break;
     }
   });
@@ -74,6 +77,7 @@ export function deserialize<T>(
   data: any[] | {},
   objectType: Class<T> | AbstractClass
 ) {
+  if (data == null) return null;
   const unionMap: Map<AbstractClass, UnionMetadata> = Reflect.getMetadata(
     unionMetadataKey,
     objectType.prototype
@@ -82,6 +86,7 @@ export function deserialize<T>(
     const unionData = unionMap.get(objectType);
 
     if (unionData) {
+      console.info("Data", data, Array.isArray(data));
       if (Array.isArray(data)) {
         if (data.length !== 2) {
           throw new Error(
@@ -89,13 +94,10 @@ export function deserialize<T>(
           );
         }
 
-        return instantiate(<Class<T>>unionData.keyMap.get(data[0]), data);
+        return instantiate(<Class<T>>unionData.keyMap.get(data[0]), data[1]);
       } else {
         const unionKey = Object.keys(data)[0];
-        return instantiate(
-          <Class<T>>objectType,
-          unionData.keyMap.get(unionKey)
-        );
+        return instantiate(unionData.keyMap.get(unionKey), data[unionKey]);
       }
     }
   }
@@ -103,8 +105,51 @@ export function deserialize<T>(
   return instantiate(<Class<T>>objectType, data);
 }
 
+function isMessagePack(objectType: AbstractClass) {
+  return (
+    Reflect.hasMetadata(unionMetadataKey, objectType.prototype) ||
+    Reflect.hasMetadata(keyMetadataKey, objectType.prototype)
+  );
+}
+
 function instantiate<T>(type: Class<T>, data: any[] | {}) {
   const obj = new type();
+  const keyMetaMap: Map<number | string, KeyMetadata> = Reflect.getMetadata(
+    keyMetadataKey,
+    type.prototype
+  );
+
+  if (Array.isArray(data)) {
+    for (let i = 0; i < data.length; i++) {
+      const keyMeta = keyMetaMap.get(i);
+      if (keyMeta) {
+        const value = isMessagePack(keyMeta.objectType)
+          ? deserialize(data[i], keyMeta.objectType)
+          : data[i];
+
+        if (value != null) {
+          obj[keyMeta.name] = value;
+        }
+      }
+    }
+  } else {
+    Object.keys(data).forEach((strKey) => {
+      const keyMeta = keyMetaMap.get(strKey);
+      if (keyMeta) {
+        const value = isMessagePack(keyMeta.objectType)
+          ? deserialize(data[strKey], keyMeta.objectType)
+          : data[strKey];
+
+        if (value != null) {
+          obj[keyMeta.name] = value;
+        }
+      } else {
+        console.warn(
+          `Object had key ${strKey} which is not registered for class ${type.name}`
+        );
+      }
+    });
+  }
 
   return obj;
 }
