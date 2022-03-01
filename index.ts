@@ -14,7 +14,7 @@ type UnionMetadata = {
 };
 
 export function serialize(obj: object, objectType?: AbstractClass) {
-  if (obj == null) return null;
+  if (obj == null) return undefined;
 
   const sourceType = Object.getPrototypeOf(obj);
 
@@ -57,7 +57,7 @@ const serializeClass = function (obj: object, baseType: Class<any>) {
       case "number":
         if (result == null) result = [];
         while ((<any[]>result).length < key) {
-          (<any[]>result).push(null);
+          (<any[]>result).push(undefined);
         }
         (<any[]>result).push(serialized);
         break;
