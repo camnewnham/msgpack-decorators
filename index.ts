@@ -4,12 +4,12 @@ const keyMetadataKey = Symbol("key");
 const unionMetadataKey = Symbol("union");
 
 type AbstractClass = Function & { prototype: any };
-type Class = AbstractClass & { new (...args: any[]): {} };
+type Class<T> = AbstractClass & { new (...args: any[]): T };
 
 type KeyMetadata = { name: string; objectType: AbstractClass };
 type UnionMetadata = {
-  prototypeMap: Map<Class, number | string>;
-  keyMap: Map<number | string, Class>;
+  prototypeMap: Map<Class<any>, number | string>;
+  keyMap: Map<number | string, Class<any>>;
 };
 
 export function serialize(obj: object, objectType?: AbstractClass) {
@@ -36,7 +36,7 @@ export function serialize(obj: object, objectType?: AbstractClass) {
 
 const serializeInner = function <C extends AbstractClass>(
   obj: object,
-  baseType: Class
+  baseType: Class<any>
 ) {
   let result: {} | any[];
   const keyMap = Reflect.getMetadata(keyMetadataKey, baseType) as Map<
@@ -70,9 +70,9 @@ const serializeInner = function <C extends AbstractClass>(
   return result;
 };
 
-export function deserialize<T extends AbstractClass | Class>(
+export function deserialize<T>(
   data: any[] | {},
-  objectType: T
+  objectType: Class<T> | AbstractClass
 ) {
   const unionMap: Map<AbstractClass, UnionMetadata> = Reflect.getMetadata(
     unionMetadataKey,
@@ -89,18 +89,24 @@ export function deserialize<T extends AbstractClass | Class>(
           );
         }
 
-        const ctor = unionData.keyMap.get(data[0]);
-        return new ctor(data[1]);
+        return instantiate(<Class<T>>unionData.keyMap.get(data[0]), data);
       } else {
         const unionKey = Object.keys(data)[0];
-        const ctor = unionData.keyMap.get(unionKey);
-        return new ctor(data[unionKey]);
+        return instantiate(
+          <Class<T>>objectType,
+          unionData.keyMap.get(unionKey)
+        );
       }
     }
   }
 
-  const ctor = <Class>objectType;
-  return new ctor(data);
+  return instantiate(<Class<T>>objectType, data);
+}
+
+function instantiate<T>(type: Class<T>, data: any[] | {}) {
+  const obj = new type();
+
+  return obj;
 }
 
 export function key(index: number | string) {
@@ -126,7 +132,7 @@ export function key(index: number | string) {
 }
 
 export function union(key: number | string, objectType: AbstractClass) {
-  return (baseType: Class) => {
+  return (baseType: Class<any>) => {
     let unionMetaMap: Map<AbstractClass, UnionMetadata> = Reflect.getMetadata(
       unionMetadataKey,
       objectType.prototype
@@ -143,8 +149,8 @@ export function union(key: number | string, objectType: AbstractClass) {
     let unionData = unionMetaMap.get(objectType);
     if (!unionData) {
       unionData = {
-        keyMap: new Map<number | string, Class>(),
-        prototypeMap: new Map<Class, number | string>(),
+        keyMap: new Map<number | string, Class<any>>(),
+        prototypeMap: new Map<Class<any>, number | string>(),
       };
       unionMetaMap.set(objectType, unionData);
     }
