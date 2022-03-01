@@ -86,7 +86,6 @@ export function deserialize<T>(
     const unionData = unionMap.get(objectType);
 
     if (unionData) {
-      console.info("Data", data, Array.isArray(data));
       if (Array.isArray(data)) {
         if (data.length !== 2) {
           throw new Error(

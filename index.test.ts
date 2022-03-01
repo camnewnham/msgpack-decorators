@@ -1,0 +1,146 @@
+import { decode, encode } from "@msgpack/msgpack";
+import { deserialize, key, union, serialize } from ".";
+
+//#region Abstract Union with numerical keys
+
+export abstract class AbstractUnionNumParent {
+  @key(0)
+  num?: number;
+  @key(1)
+  str?: string;
+  @key(2)
+  bool?: boolean;
+  @key(3)
+  numArr?: number[];
+  @key(4)
+  strArr?: string[];
+  @key(5)
+  missing?: string;
+  @key(6)
+  numRecord?: Record<string, number>;
+  @key(7)
+  strRecord?: Record<string, string>;
+  @key(8)
+  abstractChild?: AbstractUnionNumParent;
+}
+
+@union(0, AbstractUnionNumParent)
+export class UnionNumChild0 extends AbstractUnionNumParent {
+  @key(9)
+  childNum?: number;
+}
+
+@union(1, AbstractUnionNumParent)
+export class UnionNumChild1 extends AbstractUnionNumParent {
+  @key(10)
+  childStr?: string;
+  @key(11)
+  concreteChild?: UnionNumChild0;
+}
+
+//#endregion
+
+//#region Abstract union with string keys
+
+export abstract class AbstractUnionStrParent {
+  @key("zero")
+  num?: number;
+  @key("one")
+  str?: string;
+  @key("two")
+  bool?: boolean;
+  @key("three")
+  numArr?: number[];
+  @key("four")
+  strArr?: string[];
+  @key("five")
+  missing?: string;
+  @key("six")
+  numRecord?: Record<string, number>;
+  @key("seven")
+  strRecord?: Record<string, string>;
+  @key("eight")
+  abstractChild?: AbstractUnionStrParent;
+}
+
+@union("union0", AbstractUnionStrParent)
+export class UnionStrChild0 extends AbstractUnionStrParent {
+  @key("nine")
+  childNum?: number;
+}
+
+@union("union1", AbstractUnionStrParent)
+export class UnionStrChild1 extends AbstractUnionStrParent {
+  @key("ten")
+  childStr?: string;
+  @key("eleven")
+  concreteChild?: UnionStrChild0;
+}
+//#endregion
+
+//#region Tests
+
+it("Serializes child (string keys)", () => {
+  const uc1 = instantiate(UnionStrChild0, UnionStrChild1);
+  const serialized = encode(serialize(uc1));
+  const deserialized = deserialize(decode(serialized), UnionStrChild1);
+  expect(uc1).toEqual(deserialized);
+});
+
+it("Serializes child (indexed keys)", () => {
+  const uc1 = instantiate(UnionNumChild0, UnionNumChild1);
+  const serialized = encode(serialize(uc1));
+  const deserialized = deserialize(decode(serialized), UnionNumChild1);
+  expect(uc1).toEqual(deserialized);
+});
+
+it("Serializes child as interface (string keys)", () => {
+  const uc1 = instantiate(UnionStrChild0, UnionStrChild1);
+  const serialized = encode(serialize(uc1, AbstractUnionStrParent));
+  const deserialized = deserialize(decode(serialized), AbstractUnionStrParent);
+  expect(uc1).toEqual(deserialized);
+});
+
+it("Serializes child as interface (indexed keys)", () => {
+  const uc1 = instantiate(UnionNumChild0, UnionNumChild1);
+  const serialized = encode(serialize(uc1, AbstractUnionNumParent));
+  const deserialized = deserialize(decode(serialized), AbstractUnionNumParent);
+  expect(uc1).toEqual(deserialized);
+});
+
+//#endregion
+
+function instantiate<
+  T0 extends new () => UnionNumChild0 | UnionStrChild0,
+  T1 extends new () => UnionNumChild1 | UnionStrChild1
+>(ctor0: T0, ctor1: T1) {
+  const uc1 = new ctor1();
+  uc1.num = 0.25;
+  uc1.str = "hello";
+  uc1.bool = false;
+  uc1.numArr = [1, 2, 3];
+  uc1.strArr = ["arrOne", "arrTwo", "arrThree"];
+  uc1.missing = undefined;
+  uc1.numRecord = {
+    one: 1,
+    two: 2,
+  };
+  uc1.strRecord = {
+    one: "two",
+    three: "four",
+  };
+
+  uc1.childStr = "childStrVal";
+  const concreteChild = new ctor0();
+  concreteChild.childNum = 5;
+  concreteChild.str = "concreteChildStr";
+
+  uc1.concreteChild = concreteChild;
+
+  const abstractChild = new ctor0();
+  abstractChild.num = 4;
+  abstractChild.childNum = 6;
+  uc1.abstractChild = abstractChild;
+
+  return uc1;
+}
