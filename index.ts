@@ -1,28 +1,77 @@
 import "reflect-metadata";
 
-// Schema
 const keyMetadataKey = Symbol("key");
 const unionMetadataKey = Symbol("union");
-const messagePackDataKey = Symbol("messagepack");
 
 type AbstractClass = Function & { prototype: any };
 type Class = AbstractClass & { new (...args: any[]): {} };
 
 type KeyMetadata = { name: string; objectType: AbstractClass };
 type UnionMetadata = {
-  classMap: Map<Class, number | string>;
+  prototypeMap: Map<Class, number | string>;
   keyMap: Map<number | string, Class>;
 };
 
-export function serialize(obj: object, type?: AbstractClass) {
-  if (!obj[messagePackDataKey]) {
-    throw new Error("Object is not a messagepack object.");
+export function serialize(obj: object, objectType?: AbstractClass) {
+  const sourceType = Object.getPrototypeOf(obj);
+  if (objectType) {
+    const unionMetadata: Map<AbstractClass, UnionMetadata> =
+      Reflect.getMetadata(unionMetadataKey, sourceType);
+    const unionBaseData = unionMetadata && unionMetadata.get(objectType);
+
+    if (unionBaseData) {
+      const key = unionBaseData.prototypeMap.get(sourceType);
+      if (key === undefined) {
+        throw new Error("Union class is missing a key!");
+      }
+      if (typeof key === "number") {
+        return [key, serializeInner(obj, sourceType)];
+      } else {
+        return { [key]: serializeInner(obj, sourceType) };
+      }
+    }
   }
-  return (obj as IMessagePackObject).toArray(type);
+  return serializeInner(obj, sourceType);
 }
 
+const serializeInner = function <C extends AbstractClass>(
+  obj: object,
+  baseType: Class
+) {
+  let result: {} | any[];
+  const keyMap = Reflect.getMetadata(keyMetadataKey, baseType) as Map<
+    number | string,
+    KeyMetadata
+  >;
+
+  keyMap.forEach((keyData: KeyMetadata, key: number | string) => {
+    const keyValue = obj[keyData.name];
+
+    const serialized =
+      typeof keyValue === "object"
+        ? serialize(keyValue, keyData.objectType)
+        : keyValue;
+
+    switch (typeof key) {
+      case "number":
+        if (result == null) result = [];
+        while ((<any[]>result).length < key) {
+          (<any[]>result).push(null);
+        }
+        (<any[]>result).push(serialized);
+        break;
+      case "string":
+        if (result == null) result = {};
+        result[key] = serialized;
+        break;
+    }
+  });
+
+  return result;
+};
+
 export function deserialize<T extends AbstractClass | Class>(
-  data: any[],
+  data: any[] | {},
   objectType: T
 ) {
   const unionMap: Map<AbstractClass, UnionMetadata> = Reflect.getMetadata(
@@ -33,14 +82,20 @@ export function deserialize<T extends AbstractClass | Class>(
     const unionData = unionMap.get(objectType);
 
     if (unionData) {
-      if (data.length !== 2) {
-        throw new Error(
-          "Expected a union object, but got data length: " + data.length
-        );
-      }
+      if (Array.isArray(data)) {
+        if (data.length !== 2) {
+          throw new Error(
+            "Expected a union object, but got data length: " + data.length
+          );
+        }
 
-      const ctor = unionData.keyMap.get(data[0]);
-      return new ctor(data[1]);
+        const ctor = unionData.keyMap.get(data[0]);
+        return new ctor(data[1]);
+      } else {
+        const unionKey = Object.keys(data)[0];
+        const ctor = unionData.keyMap.get(unionKey);
+        return new ctor(data[unionKey]);
+      }
     }
   }
 
@@ -70,10 +125,7 @@ export function key(index: number | string) {
   };
 }
 
-export function messagePackUnion(
-  key: number | string,
-  objectType: AbstractClass
-) {
+export function union(key: number | string, objectType: AbstractClass) {
   return (baseType: Class) => {
     let unionMetaMap: Map<AbstractClass, UnionMetadata> = Reflect.getMetadata(
       unionMetadataKey,
@@ -92,77 +144,12 @@ export function messagePackUnion(
     if (!unionData) {
       unionData = {
         keyMap: new Map<number | string, Class>(),
-        classMap: new Map<Class, number | string>(),
+        prototypeMap: new Map<Class, number | string>(),
       };
       unionMetaMap.set(objectType, unionData);
     }
 
-    unionData.classMap.set(baseType, key);
+    unionData.prototypeMap.set(baseType.prototype, key);
     unionData.keyMap.set(key, baseType);
-  };
-}
-
-interface IMessagePackObject {
-  toArray<T extends AbstractClass>(objectType?: T): (type?: T) => any[];
-}
-
-export function messagePackObject<T extends Class>(baseType: T) {
-  return class extends baseType {
-    toArray = function <C extends AbstractClass>(objectType?: C) {
-      if (objectType) {
-        const unionMetadata: Map<AbstractClass, UnionMetadata> =
-          Reflect.getMetadata(unionMetadataKey, this);
-        const unionBaseData = unionMetadata && unionMetadata.get(objectType);
-        if (unionBaseData) {
-          const key = unionBaseData.classMap.get(baseType);
-          if (key === undefined) {
-            throw new Error("Union class is missing a key!");
-          }
-          return [key, this.serializeChildren(objectType)];
-        }
-      }
-      return this.serializeChildren(objectType);
-    };
-
-    serializeChildren = function <C extends AbstractClass>(objectType?: C) {
-      return (<any[]>this[messagePackDataKey]).map((d, index) => {
-        if (d && d[messagePackDataKey]) {
-          const keyMap = Reflect.getMetadata(
-            keyMetadataKey,
-            objectType.prototype
-          ) as Map<number, KeyMetadata>;
-          return d.toArray((<KeyMetadata>keyMap.get(index)).objectType);
-        } else {
-          return d;
-        }
-      });
-    };
-
-    constructor(...args: any[]) {
-      super(...args);
-      this[messagePackDataKey] = [];
-
-      const keyMap = Reflect.getMetadata(
-        keyMetadataKey,
-        baseType.prototype
-      ) as Map<number, KeyMetadata>;
-
-      if (keyMap) {
-        keyMap.forEach((data: KeyMetadata, index: number) => {
-          while (index > this[messagePackDataKey].length - 1) {
-            this[messagePackDataKey].push(null);
-          }
-
-          if (Object.getOwnPropertyDescriptor(this, data.name)) {
-            throw new Error(`Property ${data.name} is already defined.`);
-          }
-
-          Object.defineProperty(this, data.name, {
-            get: () => this[messagePackDataKey][index],
-            set: (value: any) => (this[messagePackDataKey][index] = value),
-          });
-        });
-      }
-    }
   };
 }
