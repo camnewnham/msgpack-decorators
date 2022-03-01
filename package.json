@@ -8,7 +8,7 @@
     "build": "tsc",
     "prestart": "npm run build",
   },
-  "author": "",
+  "author": "camnewnham",
   "license": "ISC",
   "dependencies": {
     "@msgpack/msgpack": "^2.7.2",
