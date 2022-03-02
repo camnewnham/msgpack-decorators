@@ -1,5 +1,4 @@
-import { decode, encode } from "@msgpack/msgpack";
-import { deserialize, key, union, serialize } from "../src";
+import { decode, key, union, encode } from "../src";
 
 //#region Abstract Union with numerical keys
 
@@ -98,30 +97,30 @@ export class UnionStrChild1 extends AbstractUnionStrParent {
 
 it("Serializes child (string keys)", () => {
   const uc1 = instantiate(UnionStrChild0, UnionStrChild1);
-  const serialized = encode(serialize(uc1));
-  const deserialized = deserialize(decode(serialized), UnionStrChild1);
+  const serialized = encode(uc1);
+  const deserialized = decode(serialized, UnionStrChild1);
   expect(deserialized).toEqual(uc1);
 });
 
 it("Serializes child (indexed keys)", () => {
   const uc1 = instantiate(UnionNumChild0, UnionNumChild1);
-  const serialized = encode(serialize(uc1));
-  const deserialized = deserialize(decode(serialized), UnionNumChild1);
+  const serialized = encode(uc1);
+  const deserialized = decode(serialized, UnionNumChild1);
   expect(deserialized).toEqual(uc1);
 });
 
 it("Serializes child as interface (string keys)", () => {
   const uc1 = instantiate(UnionStrChild0, UnionStrChild1);
-  const serialized = encode(serialize(uc1, AbstractUnionStrParent));
-  const deserialized = deserialize(decode(serialized), AbstractUnionStrParent);
+  const serialized = encode(uc1, AbstractUnionStrParent);
+  const deserialized = decode(serialized, AbstractUnionStrParent);
   //console.info("uc1", serialize(uc1, AbstractUnionStrParent));
   expect(deserialized).toEqual(uc1);
 });
 
 it("Serializes child as interface (indexed keys)", () => {
   const uc1 = instantiate(UnionNumChild0, UnionNumChild1);
-  const serialized = encode(serialize(uc1, AbstractUnionNumParent));
-  const deserialized = deserialize(decode(serialized), AbstractUnionNumParent);
+  const serialized = encode(uc1, AbstractUnionNumParent);
+  const deserialized = decode(serialized, AbstractUnionNumParent);
   expect(deserialized).toEqual(uc1);
 });
 
