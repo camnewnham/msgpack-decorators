@@ -59,7 +59,7 @@ const serializeClass = function (obj: object, baseType: Class<any>) {
         while ((<any[]>result).length < key) {
           (<any[]>result).push(undefined);
         }
-        (<any[]>result).push(serialized);
+        (<any[]>result)[key] = serialized;
         break;
       case "string":
         if (keyValue != null) {
@@ -119,33 +119,23 @@ function instantiate<T>(type: Class<T>, data: any[] | {}) {
   );
 
   if (Array.isArray(data)) {
-    for (let i = 0; i < data.length; i++) {
-      const keyMeta = keyMetaMap.get(i);
-      if (keyMeta) {
-        const value = isMessagePack(keyMeta.objectType)
-          ? deserialize(data[i], keyMeta.objectType)
-          : data[i];
+    keyMetaMap.forEach((keyMeta, index) => {
+      const value = isMessagePack(keyMeta.objectType)
+        ? deserialize(data[index], keyMeta.objectType)
+        : data[index];
 
-        if (value != null) {
-          obj[keyMeta.name] = value;
-        }
+      if (value != null) {
+        obj[keyMeta.name] = value;
       }
-    }
+    });
   } else {
-    Object.keys(data).forEach((strKey) => {
-      const keyMeta = keyMetaMap.get(strKey);
-      if (keyMeta) {
-        const value = isMessagePack(keyMeta.objectType)
-          ? deserialize(data[strKey], keyMeta.objectType)
-          : data[strKey];
+    keyMetaMap.forEach((keyMeta, strKey) => {
+      const value = isMessagePack(keyMeta.objectType)
+        ? deserialize(data[strKey], keyMeta.objectType)
+        : data[strKey];
 
-        if (value != null) {
-          obj[keyMeta.name] = value;
-        }
-      } else {
-        console.warn(
-          `Object had key ${strKey} which is not registered for class ${type.name}`
-        );
+      if (value != null) {
+        obj[keyMeta.name] = value;
       }
     });
   }

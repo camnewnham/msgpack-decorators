@@ -7,5 +7,5 @@
     "sourceMap": true,
     "outDir": "out"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["**/*.ts", "../src/**/*.ts"]
 }
