@@ -1,4 +1,8 @@
 import "reflect-metadata";
+import {
+  encode as messagePackEncode,
+  decode as messagePackDecode,
+} from "@msgpack/msgpack";
 
 const keyMetadataKey = Symbol("key");
 const unionMetadataKey = Symbol("union");
@@ -16,6 +20,17 @@ type UnionMetadata = {
   prototypeMap: Map<Class<any>, number | string>;
   keyMap: Map<number | string, Class<any>>;
 };
+
+export function encode(obj: object, objectType?: AbstractClass) {
+  return messagePackEncode(serialize(obj, objectType));
+}
+
+export function decode<T>(
+  data: ArrayLike<number> | BufferSource,
+  objectType: Class<T> | AbstractClass
+) {
+  return deserialize(messagePackDecode(data), objectType);
+}
 
 export function serialize(obj: object, objectType?: AbstractClass) {
   if (obj == null) return undefined;
