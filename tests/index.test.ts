@@ -83,14 +83,13 @@ export class UnionStrChild1 extends AbstractUnionStrParent {
 //#endregion
 
 //#region Tests
-/*
+
 it("Serializes child (string keys)", () => {
   const uc1 = instantiate(UnionStrChild0, UnionStrChild1);
   const serialized = encode(serialize(uc1));
   const deserialized = deserialize(decode(serialized), UnionStrChild1);
   expect(deserialized).toEqual(uc1);
 });
-*/
 
 it("Serializes child (indexed keys)", () => {
   const uc1 = instantiate(UnionNumChild0, UnionNumChild1);
@@ -99,7 +98,7 @@ it("Serializes child (indexed keys)", () => {
   expect(deserialized).toEqual(uc1);
 });
 
-/* it("Serializes child as interface (string keys)", () => {
+it("Serializes child as interface (string keys)", () => {
   const uc1 = instantiate(UnionStrChild0, UnionStrChild1);
   const serialized = encode(serialize(uc1, AbstractUnionStrParent));
   const deserialized = deserialize(decode(serialized), AbstractUnionStrParent);
@@ -111,7 +110,7 @@ it("Serializes child as interface (indexed keys)", () => {
   const serialized = encode(serialize(uc1, AbstractUnionNumParent));
   const deserialized = deserialize(decode(serialized), AbstractUnionNumParent);
   expect(deserialized).toEqual(uc1);
-}); */
+});
 
 //#endregion
 
