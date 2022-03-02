@@ -1,11 +1,4 @@
 {
-  "compilerOptions": {
-    "target": "ES5",
-    "module": "CommonJS",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "sourceMap": true,
-    "outDir": "out"
-  },
-  "include": ["**/*.ts", "../src/**/*.ts"]
+  "extends": "../tsconfig",
+  "include": ["**/*.ts"]
 }
