@@ -6,7 +6,11 @@ const unionMetadataKey = Symbol("union");
 type AbstractClass = Function & { prototype: any };
 type Class<T> = AbstractClass & { new (...args: any[]): T };
 
-type KeyMetadata = { name: string; objectType: AbstractClass };
+type KeyMetadata = {
+  name: string;
+  objectType: AbstractClass;
+  collectionType?: AbstractClass;
+};
 
 type UnionMetadata = {
   prototypeMap: Map<Class<any>, number | string>;
@@ -49,24 +53,67 @@ const serializeClass = function (obj: object, baseType: Class<any>) {
   keyMap.forEach((keyData: KeyMetadata, key: number | string) => {
     const keyValue = obj[keyData.name];
 
-    const serialized = isMessagePack(keyData.objectType)
-      ? serialize(keyValue, keyData.objectType)
-      : keyValue;
+    const isMessagePackObject = isMessagePack(keyData.objectType);
 
-    switch (typeof key) {
-      case "number":
-        if (result == null) result = [];
-        while ((<any[]>result).length < key) {
-          (<any[]>result).push(undefined);
+    if (keyValue != null && !isMessagePackObject && Array.isArray(keyValue)) {
+      for (let i = 0; i < keyValue.length; i++) {
+        if (keyValue[i] != null) {
+          break;
         }
-        (<any[]>result)[key] = serialized;
-        break;
-      case "string":
-        if (keyValue != null) {
-          if (result == null) result = {};
-          result[key] = serialized;
+      }
+    }
+
+    let serialized: any;
+    if (isMessagePack(keyData.objectType)) {
+      serialized = serialize(keyValue, keyData.objectType);
+    } else if (
+      Array.isArray(keyValue) &&
+      keyData.collectionType &&
+      isMessagePack(keyData.collectionType)
+    ) {
+      serialized = keyValue.map((k) => serialize(k, keyData.collectionType));
+    } else if (
+      typeof keyValue === "object" &&
+      keyData.collectionType &&
+      isMessagePack(keyData.collectionType)
+    ) {
+      serialized = {};
+      Object.keys(keyValue).forEach((k) => {
+        serialized[k] = serialize(keyValue[k], keyData.collectionType);
+      });
+    } else {
+      serialized = keyValue;
+
+      if (Array.isArray(serialized)) {
+        const itm = serialized[0];
+        if (itm && !isPrimitive(itm)) {
+          throw new Error(
+            "Attempted to serialize an array of objects. Did you for get to add the type to @key(key, ArrayValueType)?"
+          );
         }
-        break;
+      } else if (typeof serialized === "object") {
+        const keys = Object.keys(serialized);
+        if (keys.length > 0) {
+          const itm = serialized[keys[0]];
+          if (itm && !isPrimitive(itm)) {
+            throw new Error(
+              "Attempted to serialize a map of objects. Did you for get to add the type to @key(key, MapValueType)?"
+            );
+          }
+        }
+      }
+    }
+
+    if (result == null) result = typeof key === "number" ? [] : {};
+
+    if (Array.isArray(result)) {
+      while ((<any[]>result).length < key) {
+        (<any[]>result).push(undefined);
+      }
+    }
+
+    if (serialized != null) {
+      result[key] = serialized;
     }
   });
 
@@ -100,7 +147,6 @@ export function deserialize<T>(
       }
     }
   }
-
   return instantiate(<Class<T>>objectType, data);
 }
 
@@ -118,32 +164,41 @@ function instantiate<T>(type: Class<T>, data: any[] | {}) {
     type.prototype
   );
 
-  if (Array.isArray(data)) {
-    keyMetaMap.forEach((keyMeta, index) => {
-      const value = isMessagePack(keyMeta.objectType)
-        ? deserialize(data[index], keyMeta.objectType)
-        : data[index];
+  keyMetaMap.forEach((keyData, key) => {
+    const serialized = data[key];
+    let value: any;
+    if (serialized && isMessagePack(keyData.objectType)) {
+      value = deserialize(serialized, keyData.objectType);
+    } else if (
+      serialized &&
+      Array.isArray(serialized) &&
+      keyData.collectionType &&
+      isMessagePack(keyData.collectionType)
+    ) {
+      value = serialized.map((k) => deserialize(k, keyData.collectionType));
+    } else if (
+      serialized &&
+      typeof serialized === "object" &&
+      keyData.collectionType &&
+      isMessagePack(keyData.collectionType)
+    ) {
+      value = {};
+      Object.keys(serialized).forEach((k) => {
+        value[k] = deserialize(serialized[k], keyData.collectionType);
+      });
+    } else {
+      value = serialized;
+    }
 
-      if (value != null) {
-        obj[keyMeta.name] = value;
-      }
-    });
-  } else {
-    keyMetaMap.forEach((keyMeta, strKey) => {
-      const value = isMessagePack(keyMeta.objectType)
-        ? deserialize(data[strKey], keyMeta.objectType)
-        : data[strKey];
-
-      if (value != null) {
-        obj[keyMeta.name] = value;
-      }
-    });
-  }
+    if (value != null) {
+      obj[keyData.name] = value;
+    }
+  });
 
   return obj;
 }
 
-export function key(index: number | string) {
+export function key(index: number | string, collectionType?: AbstractClass) {
   return function (target: any, propertyName: string) {
     let keyMetaMap = Reflect.getMetadata(keyMetadataKey, target);
     if (!keyMetaMap) {
@@ -151,16 +206,18 @@ export function key(index: number | string) {
       Reflect.defineMetadata(keyMetadataKey, keyMetaMap, target);
     }
 
-    const classType = Reflect.getMetadata("design:type", target, propertyName);
     if (keyMetaMap.get(index)) {
       throw new Error(
         `Key (${index}) is already in use on type ${target.constructor.name}`
       );
     }
 
+    const classType = Reflect.getMetadata("design:type", target, propertyName);
+
     keyMetaMap.set(index, {
       name: propertyName,
       objectType: classType,
+      collectionType: collectionType,
     });
   };
 }
@@ -192,4 +249,9 @@ export function union(key: number | string, objectType: AbstractClass) {
     unionData.prototypeMap.set(baseType.prototype, key);
     unionData.keyMap.set(key, baseType);
   };
+}
+
+function isPrimitive(arg: any) {
+  const type = typeof arg;
+  return arg == null || (type != "object" && type != "function");
 }

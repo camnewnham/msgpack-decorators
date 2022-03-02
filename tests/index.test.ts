@@ -22,8 +22,10 @@ export abstract class AbstractUnionNumParent {
   strRecord?: Record<string, string>;
   @key(8)
   abstractChild?: AbstractUnionNumParent;
-  @key(12)
+  @key(12, AbstractUnionNumParent)
   abstractChildArr?: AbstractUnionNumParent[];
+  @key(15, AbstractUnionNumParent)
+  abstractChildMap?: Record<string, AbstractUnionNumParent>;
 }
 
 @union(0, AbstractUnionNumParent)
@@ -38,6 +40,10 @@ export class UnionNumChild1 extends AbstractUnionNumParent {
   childStr?: string;
   @key(11)
   concreteChild?: UnionNumChild0;
+  @key(13, UnionNumChild0)
+  concreteChildArr?: UnionNumChild0[];
+  @key(14, UnionNumChild0)
+  concreteChildMap?: Record<string, UnionNumChild0>;
 }
 
 //#endregion
@@ -63,8 +69,10 @@ export abstract class AbstractUnionStrParent {
   strRecord?: Record<string, string>;
   @key("eight")
   abstractChild?: AbstractUnionStrParent;
-  @key("twelve")
+  @key("twelve", AbstractUnionStrParent)
   abstractChildArr?: AbstractUnionStrParent[];
+  @key("fifteen", AbstractUnionStrParent)
+  abstractChildMap?: Record<string, AbstractUnionStrParent>;
 }
 
 @union("union0", AbstractUnionStrParent)
@@ -79,6 +87,10 @@ export class UnionStrChild1 extends AbstractUnionStrParent {
   childStr?: string;
   @key("eleven")
   concreteChild?: UnionStrChild0;
+  @key("thirteen", UnionStrChild0)
+  concreteChildArr?: UnionStrChild0[];
+  @key("sixteen", UnionStrChild0)
+  concreteChildMap?: Record<string, UnionStrChild0>;
 }
 //#endregion
 
@@ -102,6 +114,7 @@ it("Serializes child as interface (string keys)", () => {
   const uc1 = instantiate(UnionStrChild0, UnionStrChild1);
   const serialized = encode(serialize(uc1, AbstractUnionStrParent));
   const deserialized = deserialize(decode(serialized), AbstractUnionStrParent);
+  //console.info("uc1", serialize(uc1, AbstractUnionStrParent));
   expect(deserialized).toEqual(uc1);
 });
 
@@ -146,6 +159,20 @@ function instantiate<
   abstractChild.num = 4;
   abstractChild.childNum = 6;
   uc1.abstractChild = abstractChild;
+
+  uc1.concreteChildArr = [abstractChild, null, abstractChild];
+  uc1.abstractChildArr = [abstractChild, abstractChild, null];
+  uc1.abstractChildMap = {
+    one: abstractChild,
+    two: null,
+    three: abstractChild,
+  };
+
+  uc1.concreteChildMap = {
+    one: abstractChild,
+    two: null,
+    three: abstractChild,
+  };
 
   return uc1;
 }
