@@ -2,10 +2,12 @@
   "compilerOptions": {
     "target": "ES5",
     "module": "CommonJS",
+    "declaration": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "sourceMap": true,
-    "outDir": "out"
+    "outDir": "lib"
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["tests", "node_modules"]
 }

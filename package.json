@@ -2,12 +2,12 @@
   "name": "msgpack-decorators",
   "version": "0.0.1",
   "description": "",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "test": "npx jest",
     "build": "tsc",
     "prestart": "npm run build",
-    "start": "node out/test.js"
+    "start": "node lib/test.js"
   },
   "author": "camnewnham",
   "license": "ISC",
