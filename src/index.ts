@@ -29,7 +29,7 @@ export function decode<T>(
   data: ArrayLike<number> | BufferSource,
   objectType: Class<T> | AbstractClass
 ) {
-  return deserialize(messagePackDecode(data), objectType);
+  return deserialize<T>(messagePackDecode(data), objectType);
 }
 
 export function serialize(obj: object, objectType?: AbstractClass) {
@@ -155,14 +155,17 @@ export function deserialize<T>(
           );
         }
 
-        return instantiate(<Class<T>>unionData.keyMap.get(data[0]), data[1]);
+        return instantiate(
+          <Class<T>>unionData.keyMap.get(data[0]),
+          data[1]
+        ) as T;
       } else {
         const unionKey = Object.keys(data)[0];
-        return instantiate(unionData.keyMap.get(unionKey), data[unionKey]);
+        return instantiate(unionData.keyMap.get(unionKey), data[unionKey]) as T;
       }
     }
   }
-  return instantiate(<Class<T>>objectType, data);
+  return instantiate(<Class<T>>objectType, data) as T;
 }
 
 function isMessagePack(objectType: AbstractClass) {
