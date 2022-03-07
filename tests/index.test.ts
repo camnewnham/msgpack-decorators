@@ -2,7 +2,7 @@ import { decode, key, union, encode } from "../src";
 
 //#region Abstract Union with numerical keys
 
-export abstract class AbstractUnionNumParent {
+abstract class AbstractUnionNumParent {
   @key(0)
   num?: number;
   @key(1)
@@ -28,13 +28,13 @@ export abstract class AbstractUnionNumParent {
 }
 
 @union(0, AbstractUnionNumParent)
-export class UnionNumChild0 extends AbstractUnionNumParent {
+class UnionNumChild0 extends AbstractUnionNumParent {
   @key(9)
   childNum?: number;
 }
 
 @union(1, AbstractUnionNumParent)
-export class UnionNumChild1 extends AbstractUnionNumParent {
+class UnionNumChild1 extends AbstractUnionNumParent {
   @key(9)
   childStr?: string;
   @key(10)
@@ -49,7 +49,7 @@ export class UnionNumChild1 extends AbstractUnionNumParent {
 
 //#region Abstract union with string keys
 
-export abstract class AbstractUnionStrParent {
+abstract class AbstractUnionStrParent {
   @key("zero")
   num?: number;
   @key("one")
@@ -75,13 +75,13 @@ export abstract class AbstractUnionStrParent {
 }
 
 @union("union0", AbstractUnionStrParent)
-export class UnionStrChild0 extends AbstractUnionStrParent {
+class UnionStrChild0 extends AbstractUnionStrParent {
   @key("nine")
   childNum?: number;
 }
 
 @union("union1", AbstractUnionStrParent)
-export class UnionStrChild1 extends AbstractUnionStrParent {
+class UnionStrChild1 extends AbstractUnionStrParent {
   @key("nine")
   childStr?: string;
   @key("eleven")

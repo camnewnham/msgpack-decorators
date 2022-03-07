@@ -220,6 +220,14 @@ function instantiate<T>(type: Class<T>, data: any[] | {}) {
 
 export function key(index: number | string, collectionType?: AbstractClass) {
   return function (target: any, propertyName: string) {
+    const classType = Reflect.getMetadata("design:type", target, propertyName);
+
+    if (classType === undefined) {
+      throw new Error(
+        `Type undefined for key ${index} on ${target.prototype}. Are your declarations and imports in the right order?`
+      );
+    }
+
     let keyMetaMap: KeyMetaDataMap = Reflect.getMetadata(
       keyMetadataKey,
       target
@@ -246,8 +254,6 @@ export function key(index: number | string, collectionType?: AbstractClass) {
       );
     }
 
-    const classType = Reflect.getMetadata("design:type", target, propertyName);
-
     keyMetaMap.map.set(index, {
       name: propertyName,
       objectType: classType,
@@ -258,6 +264,12 @@ export function key(index: number | string, collectionType?: AbstractClass) {
 
 export function union(key: number | string, objectType: AbstractClass) {
   return (baseType: Class<any>) => {
+    if (objectType === undefined) {
+      throw new Error(
+        `Type undefined for key ${key} on a union object. Are your declarations and imports in the right order?`
+      );
+    }
+
     let unionMetaMap: Map<AbstractClass, UnionMetadata> = Reflect.getMetadata(
       unionMetadataKey,
       objectType.prototype
