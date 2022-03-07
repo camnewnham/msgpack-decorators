@@ -228,6 +228,13 @@ export function key(index: number | string, collectionType?: AbstractClass) {
       );
     }
 
+    // Assert that the class has keys
+    if (typeof classType === "function") {
+      if (!isMessagePack(classType)) {
+        throw new Error(`Class type ${classType} is not a messagepack type`);
+      }
+    }
+
     let keyMetaMap: KeyMetaDataMap = Reflect.getMetadata(
       keyMetadataKey,
       target
