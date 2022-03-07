@@ -1,4 +1,4 @@
-import { decode, key, union, encode } from "../src";
+import { decode, deserialize, key, union, encode } from "../src";
 
 //#region Abstract Union with numerical keys
 
@@ -75,4 +75,28 @@ it("deserializes inherited arrays", () => {
     expect(itm instanceof Parent).toEqual(true);
     expect(itm).toEqual(parent.items[ind]);
   });
+});
+
+it("gracefully ignores additional properties", () => {
+  const itm0 = new Child1();
+  itm0.num = 1;
+  itm0.str = "one";
+  itm0.childNum = 2;
+  const data = [0, [1, "one", 2, "new-data"]];
+
+  const decoded = deserialize(data, Parent);
+  expect(itm0.num).toEqual(decoded.num);
+  expect(itm0.str).toEqual(decoded.str);
+  expect(itm0.childNum).toEqual((<Child1>decoded).childNum);
+});
+
+it("gracefully ignores additional union types", () => {
+  const itm0 = new Child1();
+  itm0.num = 1;
+  itm0.str = "one";
+  itm0.childNum = 2;
+  const data = [2, [1, "one", "new-data"]];
+
+  const decoded = deserialize(data, Parent);
+  expect(decoded).toEqual(undefined);
 });

@@ -157,10 +157,16 @@ export function deserialize<T>(
           );
         }
 
-        return instantiate(
-          <Class<T>>unionData.keyMap.get(data[0]),
-          data[1]
-        ) as T;
+        const UnionConcreteType = unionData.keyMap.get(data[0]);
+
+        if (UnionConcreteType == null) {
+          console.warn(
+            `Received a union object with a key (${data[0]}) that is not registered for type ${objectType.name}. Was the object produced by an updated schema?`
+          );
+          return undefined;
+        }
+
+        return instantiate(UnionConcreteType, data[1]) as T;
       } else {
         const unionKey = Object.keys(data)[0];
         return instantiate(unionData.keyMap.get(unionKey), data[unionKey]) as T;
