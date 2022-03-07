@@ -21,9 +21,9 @@ export abstract class AbstractUnionNumParent {
   strRecord?: Record<string, string>;
   @key(8)
   abstractChild?: AbstractUnionNumParent;
-  @key(12, AbstractUnionNumParent)
+  @key(13, AbstractUnionNumParent)
   abstractChildArr?: AbstractUnionNumParent[];
-  @key(15, AbstractUnionNumParent)
+  @key(14, AbstractUnionNumParent)
   abstractChildMap?: Record<string, AbstractUnionNumParent>;
 }
 
@@ -35,13 +35,13 @@ export class UnionNumChild0 extends AbstractUnionNumParent {
 
 @union(1, AbstractUnionNumParent)
 export class UnionNumChild1 extends AbstractUnionNumParent {
-  @key(10)
+  @key(9)
   childStr?: string;
-  @key(11)
+  @key(10)
   concreteChild?: UnionNumChild0;
-  @key(13, UnionNumChild0)
+  @key(11, UnionNumChild0)
   concreteChildArr?: UnionNumChild0[];
-  @key(14, UnionNumChild0)
+  @key(12, UnionNumChild0)
   concreteChildMap?: Record<string, UnionNumChild0>;
 }
 
@@ -82,7 +82,7 @@ export class UnionStrChild0 extends AbstractUnionStrParent {
 
 @union("union1", AbstractUnionStrParent)
 export class UnionStrChild1 extends AbstractUnionStrParent {
-  @key("ten")
+  @key("nine")
   childStr?: string;
   @key("eleven")
   concreteChild?: UnionStrChild0;

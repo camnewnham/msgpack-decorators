@@ -16,6 +16,11 @@ type KeyMetadata = {
   collectionType?: AbstractClass;
 };
 
+type KeyMetaDataMap = {
+  map: Map<number | string, KeyMetadata>;
+  name: string;
+};
+
 type UnionMetadata = {
   prototypeMap: Map<Class<any>, number | string>;
   keyMap: Map<number | string, Class<any>>;
@@ -60,12 +65,9 @@ export function serialize(obj: object, objectType?: AbstractClass) {
 
 const serializeClass = function (obj: object, baseType: Class<any>) {
   let result: {} | any[];
-  const keyMap = Reflect.getMetadata(keyMetadataKey, baseType) as Map<
-    number | string,
-    KeyMetadata
-  >;
+  const keyMap: KeyMetaDataMap = Reflect.getMetadata(keyMetadataKey, baseType);
 
-  keyMap.forEach((keyData: KeyMetadata, key: number | string) => {
+  keyMap.map.forEach((keyData: KeyMetadata, key: number | string) => {
     const keyValue = obj[keyData.name];
 
     const isMessagePackObject = isMessagePack(keyData.objectType);
@@ -177,12 +179,12 @@ function isMessagePack(objectType: AbstractClass) {
 
 function instantiate<T>(type: Class<T>, data: any[] | {}) {
   const obj = new type();
-  const keyMetaMap: Map<number | string, KeyMetadata> = Reflect.getMetadata(
+  const keyMetaMap: KeyMetaDataMap = Reflect.getMetadata(
     keyMetadataKey,
     type.prototype
   );
 
-  keyMetaMap.forEach((keyData, key) => {
+  keyMetaMap.map.forEach((keyData, key) => {
     const serialized = data[key];
     let value: any;
     if (serialized && isMessagePack(keyData.objectType)) {
@@ -218,13 +220,27 @@ function instantiate<T>(type: Class<T>, data: any[] | {}) {
 
 export function key(index: number | string, collectionType?: AbstractClass) {
   return function (target: any, propertyName: string) {
-    let keyMetaMap = Reflect.getMetadata(keyMetadataKey, target);
+    let keyMetaMap: KeyMetaDataMap = Reflect.getMetadata(
+      keyMetadataKey,
+      target
+    );
+
     if (!keyMetaMap) {
-      keyMetaMap = new Map<number | string, KeyMetadata>();
+      keyMetaMap = {
+        map: new Map<number | string, KeyMetadata>(),
+        name: target.constructor.name,
+      };
+      Reflect.defineMetadata(keyMetadataKey, keyMetaMap, target);
+    } else if (keyMetaMap.name !== target.constructor.name) {
+      // Moving from parent to child, clone values
+      keyMetaMap = {
+        map: new Map<number | string, KeyMetadata>(keyMetaMap.map),
+        name: target.constructor.name,
+      };
       Reflect.defineMetadata(keyMetadataKey, keyMetaMap, target);
     }
 
-    if (keyMetaMap.get(index)) {
+    if (keyMetaMap.map.get(index)) {
       throw new Error(
         `Key (${index}) is already in use on type ${target.constructor.name}`
       );
@@ -232,7 +248,7 @@ export function key(index: number | string, collectionType?: AbstractClass) {
 
     const classType = Reflect.getMetadata("design:type", target, propertyName);
 
-    keyMetaMap.set(index, {
+    keyMetaMap.map.set(index, {
       name: propertyName,
       objectType: classType,
       collectionType: collectionType,
