@@ -9,9 +9,9 @@ abstract class AbstractUnionNumParent {
   str?: string;
   @key(2)
   bool?: boolean;
-  @key(3)
+  @key(3, Number)
   numArr?: number[];
-  @key(4)
+  @key(4, String)
   strArr?: string[];
   @key(5)
   missing?: string;
@@ -56,9 +56,9 @@ abstract class AbstractUnionStrParent {
   str?: string;
   @key("two")
   bool?: boolean;
-  @key("three")
+  @key("three", Number)
   numArr?: number[];
-  @key("four")
+  @key("four", String)
   strArr?: string[];
   @key("five")
   missing?: string;

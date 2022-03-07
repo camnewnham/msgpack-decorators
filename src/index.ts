@@ -228,10 +228,36 @@ export function key(index: number | string, collectionType?: AbstractClass) {
       );
     }
 
-    // Assert that the class has keys
-    if (typeof classType === "function") {
+    if (
+      typeof classType === "function" &&
+      classType !== Boolean &&
+      classType !== Number &&
+      classType !== String &&
+      classType !== Object && // Record<string,X>
+      classType !== Array // Array[]
+    ) {
       if (!isMessagePack(classType)) {
         throw new Error(`Class type ${classType} is not a messagepack type`);
+      }
+    }
+
+    if (classType === Array || classType === "object") {
+      if (collectionType) {
+        if (
+          collectionType !== Boolean &&
+          collectionType !== Number &&
+          collectionType !== String
+        ) {
+          if (!isMessagePack(collectionType)) {
+            throw new Error(
+              `Collection type ${collectionType} is not a messagepack type`
+            );
+          }
+        }
+      } else {
+        console.warn(
+          `Collection type unspecified on at key ${index} on ${target.constructor.name}. If this collection does not contain primitive values, it will fail to deserialize. To remove this warning, specific the type as @key(x,MyType)`
+        );
       }
     }
 
@@ -306,5 +332,6 @@ export function union(key: number | string, objectType: AbstractClass) {
 
 function isPrimitive(arg: any) {
   const type = typeof arg;
+
   return arg == null || (type != "object" && type != "function");
 }
