@@ -1,6 +1,8 @@
 # msgpack-decorators
 Typescript decorators for clear messagepack formatting with @msgpack/msgpack
 
+![example workflow](https://github.com/camnewnham/msgpack-decorators/actions/workflows/main.yml/badge.svg)
+
 - [Purpose](#purpose)
 - [Setup](#setup)
 - [Usage](#usage)
